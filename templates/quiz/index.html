@@ -433,7 +433,7 @@
       _arc.style.strokeDashoffset = _circum * (1 - pct);
       _arc.style.stroke           = _accentColour;
 
-      if (frameNumber >= C.duration * 30 && !_revealed) {
+      if (frameNumber >= (C.duration - 5) * 30 && !_revealed) {
         _revealed = true;
         revealAnswer(C.options[C.correctIndex]);
       }
