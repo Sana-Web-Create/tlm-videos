@@ -1,0 +1,10 @@
+{
+  "name": "tlm-videos",
+  "version": "1.0.0",
+  "description": "YouTube Shorts pipeline for The Learning Maze",
+  "main": "render.js",
+  "scripts": {
+    "render": "node render.js"
+  },
+  "license": "MIT"
+}

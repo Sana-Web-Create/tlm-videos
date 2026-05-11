@@ -1,0 +1,13 @@
+{
+  "template": "quiz",
+  "question": "What is 7 × 8?",
+  "options": ["54", "56", "58", "64"],
+  "correctIndex": 1,
+  "palette": "electric",
+  "layout": "2x2",
+  "duration": 30,
+  "channel": "The Learning Maze",
+  "subject": "MATHS",
+  "hook": "CAN YOU SOLVE THIS?",
+  "upNext": "FOLLOW FOR MORE"
+}
