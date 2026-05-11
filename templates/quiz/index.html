@@ -359,8 +359,10 @@
       gold:     { accent: "#d97706", bg: "#0c0900" },
     };
 
-    /* ── letter labels per layout ── */
     const LETTERS = ["A", "B", "C", "D"];
+
+    /* cached refs set during init */
+    let _arc, _label, _circum, _accentColour, _revealed = false;
 
     (function init() {
       const C = window.CONFIG;
@@ -371,6 +373,7 @@
       root.style.setProperty("--accent", palette.accent);
       root.style.setProperty("--bg",     palette.bg);
       document.body.style.background = palette.bg;
+      _accentColour = palette.accent;
 
       /* top bar */
       document.getElementById("channel-name").textContent = C.channel;
@@ -407,53 +410,40 @@
         grid.appendChild(btn);
       });
 
-      /* timer */
-      startTimer(C.duration, C.options[C.correctIndex]);
+      /* init timer to full */
+      _arc    = document.getElementById("timer-arc");
+      _label  = document.getElementById("timer-label");
+      _circum = 2 * Math.PI * 78;
+
+      _arc.style.strokeDasharray  = _circum;
+      _arc.style.strokeDashoffset = 0;
+      _arc.style.stroke           = _accentColour;
+      _arc.style.transition       = "none";
+      _label.textContent          = C.duration;
     })();
 
-    function startTimer(duration, correctText) {
-      const arc      = document.getElementById("timer-arc");
-      const label    = document.getElementById("timer-label");
-      const radius   = 78;
-      const circum   = 2 * Math.PI * radius;
+    /* ── called once per captured frame by render.js ── */
+    window.tickFrame = function(frameNumber, totalFrames) {
+      const C          = window.CONFIG;
+      const currentSec = Math.floor(frameNumber / 30);
+      const remaining  = C.duration - currentSec;
+      const pct        = Math.max(0, remaining / C.duration);
 
-      arc.style.strokeDasharray  = circum;
-      arc.style.strokeDashoffset = 0;
+      _label.textContent          = Math.max(0, remaining);
+      _arc.style.strokeDashoffset = _circum * (1 - pct);
+      _arc.style.stroke           = _accentColour;
 
-      let remaining = duration;
-      label.textContent = remaining;
-
-      const tick = () => {
-        remaining -= 1;
-        label.textContent = remaining > 0 ? remaining : "0";
-
-        const pct = remaining / duration;
-        arc.style.strokeDashoffset = circum * (1 - pct);
-
-        /* colour shift: accent → yellow → red */
-        if (pct > .5)       arc.style.stroke = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-        else if (pct > .25) arc.style.stroke = "#f59e0b";
-        else                arc.style.stroke = "#ef4444";
-
-        if (remaining <= 0) {
-          clearInterval(interval);
-          revealAnswer(correctText);
-        }
-      };
-
-      const interval = setInterval(tick, 1000);
-    }
+      if (frameNumber >= C.duration * 30 && !_revealed) {
+        _revealed = true;
+        revealAnswer(C.options[C.correctIndex]);
+      }
+    };
 
     function revealAnswer(correctText) {
-      const buttons = document.querySelectorAll(".option-btn");
-      const C = window.CONFIG;
-
-      buttons.forEach(btn => {
-        if (parseInt(btn.dataset.index) === C.correctIndex) {
-          btn.classList.add("correct");
-        } else {
-          btn.classList.add("wrong");
-        }
+      document.querySelectorAll(".option-btn").forEach(btn => {
+        btn.classList.add(
+          parseInt(btn.dataset.index) === window.CONFIG.correctIndex ? "correct" : "wrong"
+        );
       });
 
       document.getElementById("reveal-answer-text").textContent = correctText;
