@@ -47,42 +47,12 @@ async function render() {
 
   await page.goto('file://' + TEMPLATE_HTML, { waitUntil: 'networkidle0' });
 
-  // Freeze time: replace setInterval/setTimeout with a manual tick driver
-  // so we can advance the animation frame-by-frame deterministically.
-  await page.evaluate(() => {
-    window.__ticks = [];
-    const _setInterval = window.setInterval.bind(window);
-    window.setInterval = (fn, ms) => {
-      window.__ticks.push({ fn, ms, elapsed: 0 });
-      return window.__ticks.length - 1;
-    };
-    window.clearInterval = (id) => {
-      if (window.__ticks[id]) window.__ticks[id] = null;
-    };
-  });
-
-  // Re-run init so it picks up our overridden setInterval
-  await page.evaluate(() => {
-    // Trigger DOMContentLoaded-equivalent re-init by calling the exposed
-    // startTimer directly via the re-initialised CONFIG.
-    if (typeof window._reinit === 'function') window._reinit();
-  });
-
   console.log('Capturing frames…');
 
   for (let f = 0; f < TOTAL_FRAMES; f++) {
-    // Advance all registered interval callbacks by one frame worth of ms
-    const frameMs = 1000 / FPS;
-    await page.evaluate((ms) => {
-      (window.__ticks || []).forEach((tick) => {
-        if (!tick) return;
-        tick.elapsed += ms;
-        while (tick.elapsed >= tick.ms) {
-          tick.fn();
-          tick.elapsed -= tick.ms;
-        }
-      });
-    }, frameMs);
+    await page.evaluate((frameNumber, totalFrames) => {
+      window.tickFrame(frameNumber, totalFrames);
+    }, f, TOTAL_FRAMES);
 
     const framePath = path.join(FRAMES_DIR, `frame_${String(f).padStart(4, '0')}.png`);
     await page.screenshot({ path: framePath, type: 'png' });
