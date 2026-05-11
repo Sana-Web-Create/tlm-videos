@@ -4,8 +4,461 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quiz Template</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #7c3aed;
+      --bg:     #0a0a0f;
+      --accent-dim: color-mix(in srgb, var(--accent) 20%, transparent);
+      --accent-mid: color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      background: var(--bg);
+      color: #fff;
+      font-family: 'Nunito', sans-serif;
+    }
+
+    /* ── grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* radial glow behind question */
+    body::after {
+      content: '';
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 900px;
+      height: 900px;
+      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      width: 1080px;
+      height: 1920px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 72px 72px;
+      gap: 0;
+    }
+
+    /* ── top bar ── */
+    #top-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 64px;
+    }
+
+    #channel-name {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 36px;
+      letter-spacing: .5px;
+      color: rgba(255,255,255,.85);
+    }
+
+    #subject-badge {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 30px;
+      letter-spacing: 2px;
+      padding: 10px 28px;
+      border-radius: 100px;
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 24px var(--accent-mid);
+    }
+
+    /* ── hook ── */
+    #hook {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 72px;
+      letter-spacing: 4px;
+      color: var(--accent);
+      text-align: center;
+      text-shadow: 0 0 40px var(--accent-mid);
+      margin-bottom: 52px;
+      line-height: 1;
+    }
+
+    /* ── question box ── */
+    #question-box {
+      width: 100%;
+      background: rgba(255,255,255,.05);
+      border: 2px solid rgba(255,255,255,.1);
+      border-radius: 28px;
+      padding: 56px 64px;
+      text-align: center;
+      margin-bottom: 64px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #question-box::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 28px;
+      padding: 2px;
+      background: linear-gradient(135deg, var(--accent), transparent 60%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    #question-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 96px;
+      line-height: 1.1;
+      color: #fff;
+      letter-spacing: 2px;
+    }
+
+    /* ── countdown timer ── */
+    #timer-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 64px;
+    }
+
+    #timer-svg {
+      width: 180px;
+      height: 180px;
+    }
+
+    #timer-track {
+      fill: none;
+      stroke: rgba(255,255,255,.1);
+      stroke-width: 10;
+    }
+
+    #timer-arc {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 10;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 8px var(--accent));
+      transform-origin: 90px 90px;
+      transform: rotate(-90deg);
+      transition: stroke-dashoffset .9s linear, stroke .3s;
+    }
+
+    #timer-label {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      fill: #fff;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    /* ── answer options ── */
+    #options-grid {
+      width: 100%;
+      display: grid;
+      gap: 24px;
+      margin-bottom: 64px;
+    }
+
+    /* layout variants applied via JS */
+    #options-grid.layout-2x2   { grid-template-columns: 1fr 1fr; }
+    #options-grid.layout-stack { grid-template-columns: 1fr; }
+    #options-grid.layout-abcd  { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+    .option-btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 36px 40px;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      cursor: default;
+      transition: opacity .4s, border-color .4s, background .4s;
+      overflow: hidden;
+    }
+
+    #options-grid.layout-abcd .option-btn {
+      flex-direction: column;
+      gap: 12px;
+      padding: 32px 16px;
+      text-align: center;
+      justify-content: center;
+    }
+
+    .option-letter {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 44px;
+      color: var(--accent);
+      min-width: 44px;
+      line-height: 1;
+    }
+
+    .option-text {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 44px;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    #options-grid.layout-abcd .option-text { font-size: 36px; }
+
+    /* correct / wrong states */
+    .option-btn.correct {
+      border-color: #22c55e;
+      background: rgba(34,197,94,.18);
+      box-shadow: 0 0 32px rgba(34,197,94,.35);
+    }
+
+    .option-btn.wrong {
+      opacity: .35;
+      border-color: rgba(255,255,255,.06);
+    }
+
+    /* ── reveal banner ── */
+    #reveal-banner {
+      display: none;
+      width: 100%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-radius: 20px;
+      padding: 36px 56px;
+      text-align: center;
+      margin-bottom: 64px;
+      box-shadow: 0 0 60px rgba(34,197,94,.4);
+    }
+
+    #reveal-banner .reveal-label {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 600;
+      font-size: 30px;
+      color: rgba(255,255,255,.8);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    #reveal-banner .reveal-answer {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 72px;
+      letter-spacing: 3px;
+      color: #fff;
+    }
+
+    #reveal-banner.visible { display: block; }
+
+    /* ── bottom CTA ── */
+    #cta-pill {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 32px 72px;
+      border-radius: 100px;
+      background: var(--accent);
+      box-shadow: 0 0 48px var(--accent-mid), 0 8px 32px rgba(0,0,0,.4);
+    }
+
+    #cta-pill svg {
+      width: 44px;
+      height: 44px;
+      fill: #fff;
+      flex-shrink: 0;
+    }
+
+    #cta-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      letter-spacing: 3px;
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-  <!-- content coming next -->
+  <div id="app">
+    <div id="top-bar">
+      <div id="channel-name"></div>
+      <div id="subject-badge"></div>
+    </div>
+
+    <div id="hook"></div>
+
+    <div id="question-box">
+      <div id="question-text"></div>
+    </div>
+
+    <div id="timer-wrap">
+      <svg id="timer-svg" viewBox="0 0 180 180">
+        <circle id="timer-track" cx="90" cy="90" r="78" />
+        <circle id="timer-arc"   cx="90" cy="90" r="78" />
+        <text   id="timer-label" x="90" y="90"></text>
+      </svg>
+    </div>
+
+    <div id="options-grid"></div>
+
+    <div id="reveal-banner">
+      <div class="reveal-label">CORRECT ANSWER</div>
+      <div class="reveal-answer" id="reveal-answer-text"></div>
+    </div>
+
+    <div id="cta-pill">
+      <!-- bell icon -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z"/>
+      </svg>
+      <div id="cta-text"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ── default config (overridden by injected window.CONFIG) ── */
+    window.CONFIG = window.CONFIG || {
+      question:     "What is 7 × 8?",
+      options:      ["54", "56", "58", "64"],
+      correctIndex: 1,
+      palette:      "electric",
+      layout:       "2x2",
+      duration:     10,
+      channel:      "The Learning Maze",
+      subject:      "MATHS",
+      hook:         "CAN YOU SOLVE THIS?",
+      upNext:       "FOLLOW FOR MORE"
+    };
+
+    /* ── palettes ── */
+    const PALETTES = {
+      electric: { accent: "#7c3aed", bg: "#0a0a0f" },
+      fire:     { accent: "#f59e0b", bg: "#0f0800" },
+      ice:      { accent: "#06b6d4", bg: "#010f18" },
+      gold:     { accent: "#d97706", bg: "#0c0900" },
+    };
+
+    /* ── letter labels per layout ── */
+    const LETTERS = ["A", "B", "C", "D"];
+
+    (function init() {
+      const C = window.CONFIG;
+      const palette = PALETTES[C.palette] || PALETTES.electric;
+
+      /* apply palette */
+      const root = document.documentElement;
+      root.style.setProperty("--accent", palette.accent);
+      root.style.setProperty("--bg",     palette.bg);
+      document.body.style.background = palette.bg;
+
+      /* top bar */
+      document.getElementById("channel-name").textContent = C.channel;
+      document.getElementById("subject-badge").textContent = C.subject;
+
+      /* hook */
+      document.getElementById("hook").textContent = C.hook;
+
+      /* question */
+      document.getElementById("question-text").textContent = C.question;
+
+      /* CTA */
+      document.getElementById("cta-text").textContent = C.upNext;
+
+      /* options */
+      const grid = document.getElementById("options-grid");
+      grid.classList.add("layout-" + (C.layout || "2x2"));
+
+      C.options.forEach((opt, i) => {
+        const btn = document.createElement("div");
+        btn.className = "option-btn";
+        btn.dataset.index = i;
+
+        const letter = document.createElement("span");
+        letter.className = "option-letter";
+        letter.textContent = LETTERS[i];
+
+        const text = document.createElement("span");
+        text.className = "option-text";
+        text.textContent = opt;
+
+        btn.appendChild(letter);
+        btn.appendChild(text);
+        grid.appendChild(btn);
+      });
+
+      /* timer */
+      startTimer(C.duration, C.options[C.correctIndex]);
+    })();
+
+    function startTimer(duration, correctText) {
+      const arc      = document.getElementById("timer-arc");
+      const label    = document.getElementById("timer-label");
+      const radius   = 78;
+      const circum   = 2 * Math.PI * radius;
+
+      arc.style.strokeDasharray  = circum;
+      arc.style.strokeDashoffset = 0;
+
+      let remaining = duration;
+      label.textContent = remaining;
+
+      const tick = () => {
+        remaining -= 1;
+        label.textContent = remaining > 0 ? remaining : "0";
+
+        const pct = remaining / duration;
+        arc.style.strokeDashoffset = circum * (1 - pct);
+
+        /* colour shift: accent → yellow → red */
+        if (pct > .5)       arc.style.stroke = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+        else if (pct > .25) arc.style.stroke = "#f59e0b";
+        else                arc.style.stroke = "#ef4444";
+
+        if (remaining <= 0) {
+          clearInterval(interval);
+          revealAnswer(correctText);
+        }
+      };
+
+      const interval = setInterval(tick, 1000);
+    }
+
+    function revealAnswer(correctText) {
+      const buttons = document.querySelectorAll(".option-btn");
+      const C = window.CONFIG;
+
+      buttons.forEach(btn => {
+        if (parseInt(btn.dataset.index) === C.correctIndex) {
+          btn.classList.add("correct");
+        } else {
+          btn.classList.add("wrong");
+        }
+      });
+
+      document.getElementById("reveal-answer-text").textContent = correctText;
+      document.getElementById("reveal-banner").classList.add("visible");
+    }
+  </script>
 </body>
 </html>
